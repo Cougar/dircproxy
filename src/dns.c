@@ -62,44 +62,40 @@ struct dnsresult {
 };
 
 /* forward declarations */
-static struct dnsresult _dns_lookup(const char *, const char *);
+static void _dns_lookup(const char *, const char *, struct dnsresult *);
 static int _dns_startrequest(void *, dns_fun_t, void *, const char *, const char *);
 
 /* Children */
 static struct dnschild *dnschildren = 0;
 
 /* Function that looks up DNS request */
-static struct dnsresult _dns_lookup(const char *name, const char *ip) {
-  struct dnsresult res;
+static void _dns_lookup(const char *name, const char *ip, struct dnsresult *res) {
   pid_t pid;
 
-  memset(&res, 0, sizeof(struct dnsresult));
   pid = getpid();
 
   if (name) {
     debug("%d: Looking up IP for '%s'", pid, name);
 
-    if (dns_getip(name, res.ip)) {
-      strncpy(res.name, name, sizeof(res.name));
-      res.name[sizeof(res.name) - 1] = '\0';
-      res.success = 1;
+    if (dns_getip(name, res->ip)) {
+      strncpy(res->name, name, sizeof(res->name));
+      res->name[sizeof(res->name) - 1] = '\0';
+      res->success = 1;
     }
   } else if (ip) {
     debug("%d: Lookup up name for '%s'", pid, ip);
     
-    if (dns_getname(ip, res.name, sizeof(res.name))) {
-      strncpy(res.ip, ip, sizeof(res.ip));
-      res.ip[sizeof(res.ip) - 1] = '\0';
-      res.success = 1;
+    if (dns_getname(ip, res->name, sizeof(res->name))) {
+      strncpy(res->ip, ip, sizeof(res->ip));
+      res->ip[sizeof(res->ip) - 1] = '\0';
+      res->success = 1;
     }
   }
 
-  if (res.success)
-    debug("%d: Got '%s' (%s)", pid, res.name, res.ip);
+  if (res->success)
+    debug("%d: Got '%s' (%s)", pid, res->name, res->ip);
   else
     debug("%d: No result", pid);
-
-  return res;
 }
 
 /* Function that starts a non-blocking DNS request. */
@@ -176,7 +172,8 @@ static int _dns_startrequest(void *boundto, dns_fun_t function, void *data,
     close(wp[0]);
     
     /* Do the lookup */
-    result = _dns_lookup(name, ip);
+    memset(&result, 0, sizeof(struct dnsresult));
+    _dns_lookup(name, ip, &result);
     if (result.success) {
       /* Succeded, write to our parent and die */
       write(p[1], (void *)&result, sizeof(struct dnsresult));
